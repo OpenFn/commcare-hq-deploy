@@ -2,6 +2,8 @@ import os
 
 PROJECT_ROOT = os.path.dirname(__file__)
 
+
+ROLES_ALL = ['all']
 ROLES_ALL_SRC = [
     'pg',
     'django_monolith',
@@ -30,7 +32,11 @@ ROLES_STATIC = ['django_monolith', 'staticfiles']
 ROLES_SMS_QUEUE = ['django_monolith', 'sms_queue']
 ROLES_REMINDER_QUEUE = ['django_monolith', 'reminder_queue']
 ROLES_PILLOW_RETRY_QUEUE = ['django_monolith', 'pillow_retry_queue']
+ROLES_SUBMISSION_REPROCESSING_QUEUE = ['django_monolith', 'submission_reprocessing_queue']
 ROLES_DB_ONLY = ['pg', 'django_monolith']
+ROLES_POSTGRESQL = ['pg', 'pgstandby', 'django_monolith']
+ROLES_ELASTICSEARCH = ['elasticsearch', 'django_monolith']
+ROLES_RIAKCS = ['riakcs', 'django_monolith']
 ROLES_DEPLOY = ['deploy', 'django_monolith']
 ROLES_CONTROL = ['control']
 

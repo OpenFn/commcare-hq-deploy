@@ -35,7 +35,7 @@ import pipes
 from distutils.util import strtobool
 
 from fabric import utils
-from fabric.api import run, roles, execute, task, sudo, env, parallel
+from fabric.api import run, roles, execute, task, sudo, env, parallel, local
 from fabric.colors import blue, red, magenta
 from fabric.context_managers import cd
 from fabric.contrib import files, console
@@ -58,6 +58,7 @@ from const import (
     PROJECT_ROOT,
 )
 from exceptions import PreindexNotFinished
+from fab.utils import get_inventory
 from operations import (
     db,
     staticfiles,
@@ -75,7 +76,9 @@ from utils import (
     retrieve_cached_deploy_checkpoint,
     traceback_string,
 )
-
+from checks import (
+    check_servers,
+)
 
 if env.ssh_config_path and os.path.isfile(os.path.expanduser(env.ssh_config_path)):
     env.use_ssh_config = True
@@ -105,6 +108,7 @@ env.roledefs = {
     'sms_queue': [],
     'reminder_queue': [],
     'pillow_retry_queue': [],
+    'submission_reprocessing_queue': [],
     # 'django_celery, 'django_app', and 'django_pillowtop' all in one
     # use this ONLY for single server config,
     # otherwise deploy() will run multiple times in parallel causing issues
@@ -166,60 +170,66 @@ def load_env(env_name):
 
 @task
 def swiss():
-    env.inventory = os.path.join(PROJECT_ROOT, 'inventory', 'swiss')
-    load_env('swiss')
-    env.force = True  # don't worry about kafka checkpoints on swiss
-    execute(env_common)
+    """swiss.commcarehq.org"""
+    _setup_env('swiss', force=True)
 
 
-@task
-def india():
-    softlayer()
-
-
-@task
+@task(alias='india')
 def softlayer():
-    env.inventory = os.path.join(PROJECT_ROOT, 'inventory', 'softlayer')
-    load_env('softlayer')
-    execute(env_common)
+    """india.commcarehq.org"""
+    _setup_env('softlayer')
 
 
 @task
 def icds():
-    env.inventory = os.path.join(PROJECT_ROOT, 'inventory', 'icds')
-    load_env('icds')
-    env.force = True  # don't worry about kafka checkpoints on icds
-    execute(env_common)
+    """www.icds-cas.gov.in"""
+    _setup_env('icds')
+
+
+@task
+def l10k():
+    _setup_env('l10k', force=True)
+
+
+@task
+def enikshay():
+    """enikshay.in"""
+    _setup_env('enikshay', force=True)
 
 
 @task
 def production():
     """www.commcarehq.org"""
-    if env.code_branch != 'master':
+    _setup_env('production')
+
+
+@task
+def staging():
+    """staging.commcarehq.org"""
+    _setup_env('staging', force=True, default_branch='autostaging')
+
+
+def _setup_env(env_name, force=False, default_branch=None):
+    _confirm_branch(default_branch)
+    env.force = force  # don't worry about kafka checkpoints if True
+    env.inventory = os.path.join(PROJECT_ROOT, 'inventory', env_name)
+    load_env(env_name)
+    execute(env_common)
+
+
+def _confirm_branch(default_branch=None):
+    if env.code_branch == 'master':
+        if default_branch:
+            env.code_branch = default_branch
+            print ("using default branch of {}. you can override this "
+                   "with --set code_branch=<branch>".format(default_branch))
+    else:
         branch_message = (
             "Woah there bud! You're using branch {env.code_branch}. "
             "ARE YOU DOING SOMETHING EXCEPTIONAL THAT WARRANTS THIS?"
         ).format(env=env)
         if not console.confirm(branch_message, default=False):
             utils.abort('Action aborted.')
-
-    load_env('production')
-    env.inventory = os.path.join(PROJECT_ROOT, 'inventory', 'production')
-    execute(env_common)
-
-
-@task
-def staging():
-    """staging.commcarehq.org"""
-    if env.code_branch == 'master':
-        env.code_branch = 'autostaging'
-        print ("using default branch of autostaging. you can override this "
-               "with --set code_branch=<branch>")
-
-    env.force = True  # don't worry about kafka checkpoints on staging
-    env.inventory = os.path.join(PROJECT_ROOT, 'inventory', 'staging')
-    load_env('staging')
-    execute(env_common)
 
 
 def read_inventory_file(filename):
@@ -230,10 +240,7 @@ def read_inventory_file(filename):
     to lists of hosts (ip addresses)
 
     """
-    from ansible.inventory import InventoryParser
-
-    return {name: [host.name for host in group.get_hosts()]
-            for name, group in InventoryParser(filename).groups.items()}
+    return get_inventory(filename).get_group_dict()
 
 
 @task
@@ -263,9 +270,13 @@ def env_common():
     env.deploy_metadata = DeployMetadata(env.code_branch, env.environment)
     _setup_path()
 
+    all = servers['all']
+    print all
     proxy = servers['proxy']
     webworkers = servers['webworkers']
+    riakcs = servers.get('riakcs', [])
     postgresql = servers['postgresql']
+    pg_standby = servers.get('pg_standby', [])
     touchforms = servers['touchforms']
     formplayer = servers['formplayer']
     elasticsearch = servers['elasticsearch']
@@ -277,12 +288,17 @@ def env_common():
     deploy = servers.get('deploy', servers['postgresql'])[:1]
 
     env.roledefs = {
+        'all': all,
         'pg': postgresql,
+        'pgstandby': pg_standby,
+        'elasticsearch': elasticsearch,
+        'riakcs': riakcs,
         'rabbitmq': rabbitmq,
         'django_celery': celery,
         'sms_queue': celery,
         'reminder_queue': celery,
         'pillow_retry_queue': celery,
+        'submission_reprocessing_queue': celery,
         'django_app': webworkers,
         'django_pillowtop': pillowtop,
         'formsplayer': touchforms,
@@ -396,6 +412,12 @@ def deploy_formplayer():
 
 
 @task
+def rollback_formplayer():
+    execute(formplayer.rollback_formplayer)
+    execute(supervisor.restart_formplayer)
+
+
+@task
 def offline_setup_release(keep_days=0):
     env.offline = True
     execute_with_timing(release.create_offline_dir)
@@ -405,7 +427,6 @@ def offline_setup_release(keep_days=0):
     execute_with_timing(release.update_code_offline)
 
     execute_with_timing(release.clone_virtualenv)
-    execute_with_timing(release.offline_pip_install)
     execute_with_timing(copy_release_files)
 
     execute_with_timing(release.update_bower_offline)
@@ -723,7 +744,7 @@ def awesome_deploy(confirm="yes", resume='no', offline='no'):
 
         # Force ansible user and prompt for password
         env.user = 'ansible'
-        env.password = getpass('Enter the password for then ansbile user: ')
+        env.password = getpass('Enter the password for the ansbile user: ')
 
     if warning_message:
         print('')
@@ -743,6 +764,7 @@ def awesome_deploy(confirm="yes", resume='no', offline='no'):
 
 
 @task
+@parallel
 def supervisorctl(command):
     require('supervisor_roles',
             provided_by=('staging', 'production', 'softlayer'))
@@ -784,7 +806,7 @@ def silent_services_restart(use_current_release=False):
 @task
 def set_supervisor_config():
     setup_release()
-    supervisor.set_supervisor_config()
+    execute_with_timing(supervisor.set_supervisor_config)
 
 
 @task
@@ -881,3 +903,14 @@ OFFLINE_DEPLOY_COMMANDS = [
     staticfiles.update_manifest,
     release.clean_releases,
 ]
+
+@task
+def check_status():
+    env.user = 'ansible'
+    env.sudo_user = 'root'
+    env.password = getpass('Enter the password for the ansbile user: ')
+
+    execute(check_servers.ping)
+    execute(check_servers.postgresql)
+    execute(check_servers.elasticsearch)
+    execute(check_servers.riakcs)
