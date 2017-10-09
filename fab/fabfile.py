@@ -173,6 +173,11 @@ def swiss():
     """swiss.commcarehq.org"""
     _setup_env('swiss', force=True)
 
+@task
+def dev():
+    """dev"""
+    _setup_env('dev')
+
 
 @task(alias='india')
 def softlayer():
@@ -906,7 +911,7 @@ OFFLINE_DEPLOY_COMMANDS = [
 
 @task
 def check_status():
-    env.user = 'ansible'
+    env.user = 'root'
     env.sudo_user = 'root'
     env.password = getpass('Enter the password for the ansbile user: ')
 
