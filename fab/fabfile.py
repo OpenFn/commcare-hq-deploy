@@ -170,6 +170,12 @@ def load_env(env_name):
 
 
 @task
+def dev():
+    """45.55.33.190"""
+    _setup_env('dev', force=True)
+
+
+@task
 def swiss():
     """swiss.commcarehq.org"""
     _setup_env('swiss', force=True)
