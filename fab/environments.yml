@@ -29,7 +29,7 @@ base:
   gunicorn_workers_static_factor: 0
   home: "/home/cchq"
   project: commcare-hq
-  code_repo: 'git://github.com/openfn/commcare-hq.git'
+  code_repo: 'git://github.com/dimagi/commcare-hq.git'
   timing_log: null  # make a file path to log deploy timing to it. e.g. '../fabric-timing.txt'
   jython_memory: "3584m"
   formplayer_memory: "3584m"
