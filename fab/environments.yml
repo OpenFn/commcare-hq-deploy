@@ -42,7 +42,7 @@ enikshay:
   formplayer_memory: "7000m"
   newrelic_javaagent: False
   celery_processes:
-    '*':
+    '172.25.2.10':
       celery_periodic:
         server_whitelist: '172.25.2.10'
         concurrency: 4
@@ -85,6 +85,9 @@ enikshay:
         concurrency: 4
         max_tasks_per_child: 1
       flower: {}
+    '172.25.2.6':
+      ucr_indicator_queue:
+        concurrency: 4
   pillows:
     '*':
       AppDbChangeFeedPillow:
@@ -110,7 +113,7 @@ enikshay:
       GroupToUserPillow:
         num_processes: 1
       kafka-ucr-main:
-        num_processes: 2
+        num_processes: 4
       KafkaDomainPillow:
         num_processes: 1
       LedgerToElasticsearchPillow:
@@ -118,7 +121,7 @@ enikshay:
       CaseSearchToElasticsearchPillow:
         num_processes: 4
       kafka-ucr-static:
-        num_processes: 2
+        num_processes: 4
       SqlSMSPillow:
         num_processes: 1
       UnknownUsersPillow:
