@@ -1,48 +1,48 @@
 [proxy]
-45.55.33.190
+45.55.57.191
 
 [webworkers]
-45.55.33.190
+45.55.57.191
 
 [couchdb]
-45.55.33.190
+45.55.57.191
 
 [postgresql]
-45.55.33.190
+45.55.57.191
 
 [rabbitmq]
-45.55.33.190
+45.55.57.191
 
 [zookeeper]
-45.55.33.190
+45.55.57.191
 
 [kafka]
-45.55.33.190 kafka_broker_id=0
+45.55.57.191 kafka_broker_id=0
 
 
 [celery]
 # ansible makes the first thing in this list the flower url
 # a little bit redundant with with more explicit settings in environments.yml
 # but ansible doesn't currently have access to that
-45.55.33.190
+45.55.57.191
 
 [pillowtop]
-45.55.33.190
+45.55.57.191
 
 [touchforms]
-45.55.33.190
+45.55.57.191
 
 [formplayer]
-45.55.33.190
+45.55.57.191
 
 [redis]
-45.55.33.190
+45.55.57.191
 
 [elasticsearch]
-45.55.33.190 elasticsearch_node_name=hqes1
+45.55.57.191 elasticsearch_node_name=hqes1
 
 [shared_dir_host]
-45.55.33.190
+45.55.57.191
 
 [control]
 control.internal-va.commcarehq.org

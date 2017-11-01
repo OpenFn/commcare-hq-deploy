@@ -697,7 +697,7 @@ dev:
         max_tasks_per_child: 1
       celery_periodic:
         concurrency: 1
-        server_whitelist: 45.55.33.190
+        server_whitelist: 45.55.57.191
       repeat_record_queue:
         pooling: gevent
         concurrency: 1
